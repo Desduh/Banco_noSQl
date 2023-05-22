@@ -23,9 +23,9 @@ def insert_produtos(session,nome,quantia,preco):
   id = uuid.uuid4()
   session.execute("INSERT INTO produtos (id, preco, quantia, nome) VALUES (%s,%s,%s,%s)", [id, preco, quantia, nome])
 
-def insert_compras(session,email,produtos):
+def insert_compras(session,email,produto):
   id = uuid.uuid4()
-  session.execute("INSERT INTO compras (id, email, produtos) VALUES (%s,%s,%s)", [id, email,produtos])
+  session.execute("INSERT INTO compras (id, email, produto) VALUES (%s,%s,%s)", [id, email,produto])
 
 
 
@@ -39,6 +39,10 @@ def find_vendedores():
 
 def find_produtos():
   result = session.execute("SELECT * FROM produtos")
+  return result
+
+def find_compras():
+  result = session.execute("SELECT * FROM compras;")
   return result
 
 #funcoes recebe 
@@ -125,6 +129,28 @@ def pega_produtos():
         print("Quantia disponível: " + produto.quantia)
         print("")
 
+def pega_compras():
+    clientes = find_clientes()
+    produtos = find_produtos()
+    for cliente in clientes:
+        print(f'Cliente: {cliente.nome}')
+        compras = find_compras()
+        for compra in compras:
+          if(compra.email == cliente.email):
+            for produto in produtos:
+                if compra.produto == produto.id:
+                    total = 0
+                    posicao = 1
+                    for produto in produtos:
+                        nome = produto.nome
+                        preco = produto.preco
+                        quantia = produto.quantia
+                        print(f"0{posicao} - Produto: {nome}, Preço: {preco}, Quantia: {quantia}")
+                        total += float(quantia.replace(",", "."))
+                        posicao += 1
+                    print(f"Total: R${str(total).replace('.', ',')}")
+
+
 def cadastrar_compras():
     email = input("Email do usuário que ira comprar: ")
     print('')
@@ -136,14 +162,11 @@ def cadastrar_compras():
         produtoNome = input("Nome do produto comprado: ")
         produtosNome.append(produtoNome)
         chave = (input("Deseja adicionar outra compra? (s/n): ") == 's')
-    produtoAdc = []
     produtos = find_produtos()
     for produto in produtos:
         for produtoNome in produtosNome:
-            if (produto.get("nome") == produtoNome):
-                produtoAdc.append(produto)
-    insert_compras(email, produtoAdc)
-    update_usuario_compras(session,email, produtoAdc)
+            if (produto.nome == produtoNome):
+                insert_compras(session,email,produto.id)
     tudo_ok()
     voltar_opcoes()
 
@@ -348,15 +371,11 @@ def main():
         CREATE TABLE IF NOT EXISTS mercado_livre.compras (
             id UUID PRIMARY KEY,
             email text,
-            produtos list<text>
+            produto UUID
         )
     """)
 
 
-    email = "bob@example.com"
-    produtos = ["Pente"]
-
-    insert_compras(session,email,produtos)
 
     # get_user(session)
 
