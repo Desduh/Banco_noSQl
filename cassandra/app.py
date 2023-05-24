@@ -377,62 +377,38 @@ def atualizar_produto():
 
 
 
-def cadastrar_compras():
-    email = input("Email do usuário que vai comprar: ")
+def cadastrar_itens(tipo, mensagem, opcao):
+    email = input("Email do usuário: ")
     print('')
     print("Produtos disponíveis:")
     pega_produtos()
-    produtosNome = []
+    itensNome = []
     chave = True
     while chave:
-        produtoNome = input("Nome do produto comprado: ")
-        produtosNome.append(produtoNome)
-        chave = (input("Deseja adicionar outra compra? (s/n): ") == 's')
+        itemNome = input(mensagem)
+        itensNome.append(itemNome)
+        chave = (input(opcao) == 's')
     produtos = find_produtos()
     for produto in produtos:
-        for produtoNome in produtosNome:
-            if (produto.nome == produtoNome):
-                insert_compras(session,email,produto.nome)
+        for itemNome in itensNome:
+            if produto.nome == itemNome:
+                if tipo == "compras":
+                    insert_compras(session, email, produto.nome)
+                elif tipo == "favoritos":
+                    insert_favoritos(session, email, produto.nome)
+                elif tipo == "relacao":
+                    insert_relacao(session, email, produto.nome)
     tudo_ok()
     voltar_opcoes()
+
+def cadastrar_compras():
+    cadastrar_itens("compras", "Nome do produto comprado: ", "Deseja adicionar outra compra? (s/n): ")
 
 def cadastrar_favoritos():
-    email = input("Email do usuário que vai favoritar: ")
-    print('')
-    print("Produtos disponíveis:")
-    pega_produtos()
-    produtosNome = []
-    chave = True
-    while chave:
-        produtoNome = input("Nome do produto favoritado: ")
-        produtosNome.append(produtoNome)
-        chave = (input("Deseja adicionar outro favorito? (s/n): ") == 's')
-    produtos = find_produtos()
-    for produto in produtos:
-        for produtoNome in produtosNome:
-            if (produto.nome == produtoNome):
-                insert_favoritos(session,email,produto.nome)
-    tudo_ok()
-    voltar_opcoes()
+    cadastrar_itens("favoritos", "Nome do produto favoritado: ", "Deseja adicionar outro favorito? (s/n): ")
 
 def adicionar_relacao():
-    email = input("Email do vendedor que será responsável pelo produto: ")
-    print('')
-    print("Produtos disponíveis:")
-    pega_produtos()
-    produtosNome = []
-    chave = True
-    while chave:
-        produtoNome = input("Nome do produto: ")
-        produtosNome.append(produtoNome)
-        chave = (input("Deseja adicionar outro produto? (s/n): ") == 's')
-    produtos = find_produtos()
-    for produto in produtos:
-        for produtoNome in produtosNome:
-            if (produto.nome == produtoNome):
-                insert_relacao(session,email,produto.nome)
-    tudo_ok()
-    voltar_opcoes()
+    cadastrar_itens("relacao", "Nome do produto: ", "Deseja adicionar outro produto? (s/n): ")
 
 
 
