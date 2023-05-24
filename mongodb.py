@@ -12,10 +12,10 @@ def insert_usuario(nome,sobrenome,email,endereco):
     mydict = {"nome": nome, "sobrenome": sobrenome, "email": email, "enderecos": endereco}
     x = mycol.insert_one(mydict)
 
-def insert_vendedor(nome,sobrenome,email):
+def insert_vendedor(nome, sobrenome, email, produtos):
     global mydb
     mycol = mydb.vendedores
-    mydict = {"nome": nome, "sobrenome": sobrenome, "email": email}
+    mydict = {"nome": nome, "sobrenome": sobrenome, "email": email, "produtos": produtos}
     x = mycol.insert_one(mydict)
 
 def insert_produtos(nome,quantia,preco):
@@ -124,16 +124,19 @@ def recebe_cadastro_vendedor():
     nome = input("Nome: ")
     sobrenome = input("Sobrenome: ")
     email = input("Email: ")
-    # print("Produtos")
-    # produtos = []
-    # adicao = True
-    # while adicao:
-    #     id = input("ID do produto: ")
-    #     produtos.append({"id": id})
-    #     adicao = (input("Deseja adicionar outro produto? (s/n): ") == 's')
-    insert_vendedor(nome,sobrenome,email)
+    produtos = []
+    adicao = True
+    while adicao:
+        nome_produto = input("Nome do produto: ")
+        quantia_produto = input("Quantidade em estoque: ")
+        preco_produto = input("Preço: ")
+        produto = {"nome": nome_produto, "quantia": quantia_produto, "preco": preco_produto}
+        produtos.append(produto)
+        adicao = (input("Deseja adicionar outro produto? (s/n): ") == 's')
+    insert_vendedor(nome, sobrenome, email, produtos)
     tudo_ok()
     voltar_opcoes()
+
 
 def recebe_cadastro_produto():
     nome = input("Nome: ")
@@ -190,14 +193,17 @@ def pega_vendedores():
         posicao = 1
         produtos = vendedor.get("produtos")
         if produtos != None:
-            print("Vende esses produtos: ")
+            print("Produtos: ")
             for produto in produtos:
-                nome = produto.get("nome")
-                print(f"0{posicao} - Nome do produto: {nome}")
+                nome_produto = produto.get("nome")
+                quantia_produto = produto.get("quantia")
+                preco_produto = produto.get("preco")
+                print(f"0{posicao} - Nome do produto: {nome_produto}, Quantidade: {quantia_produto}, Preço: {preco_produto}")
                 posicao += 1
         print("")
     tudo_ok()
     voltar_opcoes()
+
 
 def pega_produtos():
     produtos = find_produtos()
