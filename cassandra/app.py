@@ -28,9 +28,12 @@ def insert_compras(session,email,produto):
   session.execute("INSERT INTO compras (id, email, produto) VALUES (%s,%s,%s)", [id, email,produto])
 
 def insert_favoritos(session,email,produto):
-  print("oi")
   id = uuid.uuid4()
   session.execute("INSERT INTO favoritos (id, email, produto) VALUES (%s,%s,%s)", [id, email,produto])
+
+def insert_relacao(session,email,produto):
+  id = uuid.uuid4()
+  session.execute("INSERT INTO produtos_vendedor (id, email, produto) VALUES (%s,%s,%s)", [id, email,produto])
 
 
 
@@ -145,6 +148,34 @@ def deletar_favorito(session, email):
         print("Usuário não encontrado.")
     voltar_opcoes()
 
+def remover_relacao(session, email):
+    nome_result = session.execute("SELECT nome FROM vendedores WHERE email = %s", [email])
+    nome = nome_result.one().nome if nome_result else None
+    if nome:
+        print(f"Vendedor: {nome}")
+        favoritos = session.execute("SELECT * FROM produtos_vendedor WHERE email = %s", [email])
+        posicao = 1
+        for favorito in favoritos:
+            preco = session.execute("SELECT preco FROM produtos WHERE nome = %s", [favorito.produto]).one().preco
+            nome = favorito.produto
+            print(f"0{posicao} - Produto: {nome}, Preço: R${str(preco).replace('.', ',')}")
+            posicao += 1
+        chave = True
+        while chave:
+            produtoNome = input("Produto a remover: ")
+            chave = (input("Deseja remover outro produto? (s/n): ") == 's')
+            id_result = session.execute("SELECT id FROM produtos_vendedor WHERE email = %s AND produto = %s", [email, produtoNome])
+            id = id_result.one().id if id_result else None
+            if id:
+                prepared = session.prepare("DELETE FROM produtos_vendedor WHERE id = ?")
+                session.execute(prepared, [id])
+                tudo_ok()
+            else:
+                print("Relação não encontrada.")
+    else:
+        print("Vendedor não encontrado.")
+    voltar_opcoes()
+
 
 
 #funcoes recebe 
@@ -168,13 +199,6 @@ def recebe_cadastro_vendedor():
     nome = input("Nome: ")
     sobrenome = input("Sobrenome: ")
     email = input("Email: ")
-    # print("Produtos")
-    # produtos = []
-    # adicao = True
-    # while adicao:
-    #     id = input("ID do produto: ")
-    #     produtos.append({"id": id})
-    #     adicao = (input("Deseja adicionar outro produto? (s/n): ") == 's')
     insert_vendedor(session, nome, sobrenome, email)
     tudo_ok()
     voltar_opcoes()
@@ -221,6 +245,8 @@ def pega_vendedores():
                 nome = produto.get("nome", "")
                 print(f"0{posicao} - Nome do produto: {nome}")
                 posicao += 1
+        print("Relação com produtos: ")
+        pega_relacao(vendedor.email)
         print("")
     tudo_ok()
     voltar_opcoes()
@@ -251,6 +277,15 @@ def pega_compras():
 def pega_favoritos(email):
         posicao = 1
         favoritos = session.execute("SELECT * FROM favoritos WHERE email = %s", [email])
+        for favorito in favoritos:
+            preco = session.execute("SELECT preco FROM produtos WHERE nome = %s", [favorito.produto]).one().preco
+            nome = favorito.produto
+            print(f"0{posicao} - Produto: {nome}, Preço: R${str(preco).replace('.', ',')}")
+            posicao += 1
+
+def pega_relacao(email):
+        posicao = 1
+        favoritos = session.execute("SELECT * FROM produtos_vendedor WHERE email = %s", [email])
         for favorito in favoritos:
             preco = session.execute("SELECT preco FROM produtos WHERE nome = %s", [favorito.produto]).one().preco
             nome = favorito.produto
@@ -380,6 +415,25 @@ def cadastrar_favoritos():
     tudo_ok()
     voltar_opcoes()
 
+def adicionar_relacao():
+    email = input("Email do vendedor que será responsável pelo produto: ")
+    print('')
+    print("Produtos disponíveis:")
+    pega_produtos()
+    produtosNome = []
+    chave = True
+    while chave:
+        produtoNome = input("Nome do produto: ")
+        produtosNome.append(produtoNome)
+        chave = (input("Deseja adicionar outro produto? (s/n): ") == 's')
+    produtos = find_produtos()
+    for produto in produtos:
+        for produtoNome in produtosNome:
+            if (produto.nome == produtoNome):
+                insert_relacao(session,email,produto.nome)
+    tudo_ok()
+    voltar_opcoes()
+
 
 
 # Opções
@@ -456,6 +510,8 @@ def opcoes_vendedor():
     print("02 - Visualizar dados")
     print("03 - Atualizar dados")
     print("04 - Deletar dados")
+    print("05 - Adicionar relação com produto")
+    print("06 - Remover relação com produto")
     print("00 - Voltar")
     print("")
     opcao = int(input("Opção: "))
@@ -476,6 +532,13 @@ def opcoes_vendedor():
     elif(opcao == 4):
         email = input("Email do vendedor: ")
         delete_vendedor(session,email)
+
+    elif(opcao == 5):
+        adicionar_relacao()
+
+    elif(opcao == 6):
+        email = input("Email do vendedor relacionado ao produto: ")
+        remover_relacao(session,email)
 
 def opcoes_produtos():
     print("Qual opção deseja?")
@@ -587,6 +650,14 @@ def main():
         )
     """)
 
+    session.execute("""
+        CREATE TABLE IF NOT EXISTS mercado_livre.produtos_vendedor (
+            id UUID PRIMARY KEY,
+            email text,
+            produto text
+        )
+    """)
+
     session.execute("CREATE INDEX IF NOT EXISTS email_usuario ON usuarios (email);")
     session.execute("CREATE INDEX IF NOT EXISTS email_vendedor ON vendedores (email);")
     session.execute("CREATE INDEX IF NOT EXISTS nome_produto ON produtos (nome);")
@@ -594,14 +665,8 @@ def main():
     session.execute("CREATE INDEX IF NOT EXISTS produto_compra ON compras (produto);")
     session.execute("CREATE INDEX IF NOT EXISTS email_favorito ON favoritos (email);")
     session.execute("CREATE INDEX IF NOT EXISTS produto_favorito ON favoritos (produto);")
-
-    # get_user(session)
-
-    # update_user(session, new_age, lastname)
-
-    # get_user(session, lastname)
-
-    # delete_user(session, lastname)
+    session.execute("CREATE INDEX IF NOT EXISTS email_prod_vend ON produtos_vendedor (email);")
+    session.execute("CREATE INDEX IF NOT EXISTS produto_prod_vend ON produtos_vendedor (produto);")
 
 main()
 opcoes()
