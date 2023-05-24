@@ -45,6 +45,71 @@ def find_compras():
   result = session.execute("SELECT * FROM compras;")
   return result
 
+
+
+def delete_usuario(session, email):
+    id_result = session.execute("SELECT id FROM usuarios WHERE email = %s", [email])
+    id = id_result.one().id if id_result else None
+    if id:
+        prepared = session.prepare("DELETE FROM usuarios WHERE id = ?")
+        session.execute(prepared, [id])
+        tudo_ok()
+    else:
+        print("Usuário não encontrado.")
+    voltar_opcoes()
+
+def delete_vendedor(session,email):
+    id_result = session.execute("SELECT id FROM vendedores WHERE email = %s", [email])
+    id = id_result.one().id if id_result else None
+    if id:
+        prepared = session.prepare("DELETE FROM vendedores WHERE id = ?")
+        session.execute(prepared, [id])
+        tudo_ok()
+    else:
+        print("Vendedor não encontrado.")
+    voltar_opcoes()
+
+def delete_produto(session,nome):
+    id_result = session.execute("SELECT id FROM produtos WHERE nome = %s", [nome])
+    id = id_result.one().id if id_result else None
+    if id:
+        prepared = session.prepare("DELETE FROM produtos WHERE id = ?")
+        session.execute(prepared, [id])
+        tudo_ok()
+    else:
+        print("Produto não encontrado.")
+    voltar_opcoes()
+
+def delete_compra(session, email):
+    nome_result = session.execute("SELECT nome FROM usuarios WHERE email = %s", [email])
+    nome = nome_result.one().nome if nome_result else None
+    if nome:
+        print(f"Cliente: {nome}")
+        compras = session.execute("SELECT * FROM compras WHERE email = %s", [email])
+        posicao = 1
+        for compra in compras:
+            preco = session.execute("SELECT preco FROM produtos WHERE nome = %s", [compra.produto]).one().preco
+            nome = compra.produto
+            print(f"0{posicao} - Produto: {nome}, Preço: R${str(preco).replace('.', ',')}")
+            posicao += 1
+        chave = True
+        while chave:
+            produtoNome = input("Produto a excluir: ")
+            chave = (input("Deseja excluir outro produto? (s/n): ") == 's')
+            id_result = session.execute("SELECT id FROM compras WHERE email = %s AND produto = %s", [email, produtoNome])
+            id = id_result.one().id if id_result else None
+            if id:
+                prepared = session.prepare("DELETE FROM compras WHERE id = ?")
+                session.execute(prepared, [id])
+                tudo_ok()
+            else:
+                print("Compra não encontrada.")
+    else:
+        print("Usuário não encontrado.")
+    voltar_opcoes()
+
+    
+
 #funcoes recebe 
 def recebe_cadastro_usuario():
     nome = input("Nome: ")
@@ -131,24 +196,19 @@ def pega_produtos():
 
 def pega_compras():
     clientes = find_clientes()
-    produtos = find_produtos()
     for cliente in clientes:
         print(f'Cliente: {cliente.nome}')
-        compras = find_compras()
+        posicao = 1
+        total = 0  
+        compras = session.execute("SELECT * FROM compras WHERE email = %s", [cliente.email])
         for compra in compras:
-          if(compra.email == cliente.email):
-            for produto in produtos:
-                if compra.produto == produto.id:
-                    total = 0
-                    posicao = 1
-                    for produto in produtos:
-                        nome = produto.nome
-                        preco = produto.preco
-                        quantia = produto.quantia
-                        print(f"0{posicao} - Produto: {nome}, Preço: {preco}, Quantia: {quantia}")
-                        total += float(quantia.replace(",", "."))
-                        posicao += 1
-                    print(f"Total: R${str(total).replace('.', ',')}")
+            preco = session.execute("SELECT preco FROM produtos WHERE nome = %s", [compra.produto]).one().preco
+            nome = compra.produto
+            print(f"0{posicao} - Produto: {nome}, Preço: R${str(preco).replace('.', ',')}")
+            total += float(preco.replace(",", "."))
+            posicao += 1
+    print(f"Total: R${str(total).replace('.', ',')}")
+
 
 
 def cadastrar_compras():
@@ -166,7 +226,7 @@ def cadastrar_compras():
     for produto in produtos:
         for produtoNome in produtosNome:
             if (produto.nome == produtoNome):
-                insert_compras(session,email,produto.id)
+                insert_compras(session,email,produto.nome)
     tudo_ok()
     voltar_opcoes()
 
@@ -177,10 +237,7 @@ def cadastrar_compras():
 #     prepared = session.prepare("UPDATE users SET age = ? WHERE lastname = ?")
 #     session.execute(prepared, [new_age, lastname])
 
-# def delete_user(session, lastname):
-#     # TO DO: execute a BoundStatement that updates the age of one user
-#     prepared = session.prepare("DELETE FROM users WHERE lastname = ?")
-#     session.execute(prepared, [lastname])
+
 
 # Opções
 
@@ -238,7 +295,7 @@ def opcoes_usuario():
 
     elif(opcao == 4):
         email = input("Email do usuário: ")
-        delete_usuario(email)
+        delete_usuario(session,email)
 
     elif(opcao == 5):
         cadastrar_compras()
@@ -271,7 +328,7 @@ def opcoes_vendedor():
 
     elif(opcao == 4):
         email = input("Email do vendedor: ")
-        delete_vendedor(email)
+        delete_vendedor(session,email)
 
 def opcoes_produtos():
     print("Qual opção deseja?")
@@ -300,7 +357,7 @@ def opcoes_produtos():
 
     elif(opcao == 4):
         nome = input("Nome do produto: ")
-        delete_produto(nome)
+        delete_produto(session,nome)
 
 def opcoes_compras():
     print("Qual opção deseja?")
@@ -321,7 +378,7 @@ def opcoes_compras():
 
     elif(opcao == 2):
         email = input("Email do usuário relacionado a compra: ")
-        delete_compra(email)
+        delete_compra(session,email)
 
 def tudo_ok():
     print("Sua operação foi realizada!")
@@ -371,11 +428,15 @@ def main():
         CREATE TABLE IF NOT EXISTS mercado_livre.compras (
             id UUID PRIMARY KEY,
             email text,
-            produto UUID
+            produto text
         )
     """)
 
-
+    session.execute("CREATE INDEX IF NOT EXISTS email_usuario ON usuarios (email);")
+    session.execute("CREATE INDEX IF NOT EXISTS email_vendedor ON vendedores (email);")
+    session.execute("CREATE INDEX IF NOT EXISTS nome_produto ON produtos (nome);")
+    session.execute("CREATE INDEX IF NOT EXISTS email_compra ON compras (email);")
+    session.execute("CREATE INDEX IF NOT EXISTS produto_compra ON compras (produto);")
 
     # get_user(session)
 
