@@ -117,7 +117,35 @@ def delete_compra(session, email):
         print("Usuário não encontrado.")
     voltar_opcoes()
 
-    
+def deletar_favorito(session, email):
+    nome_result = session.execute("SELECT nome FROM usuarios WHERE email = %s", [email])
+    nome = nome_result.one().nome if nome_result else None
+    if nome:
+        print(f"Cliente: {nome}")
+        favoritos = session.execute("SELECT * FROM favoritos WHERE email = %s", [email])
+        posicao = 1
+        for favorito in favoritos:
+            preco = session.execute("SELECT preco FROM produtos WHERE nome = %s", [favorito.produto]).one().preco
+            nome = favorito.produto
+            print(f"0{posicao} - Produto: {nome}, Preço: R${str(preco).replace('.', ',')}")
+            posicao += 1
+        chave = True
+        while chave:
+            produtoNome = input("Produto a excluir: ")
+            chave = (input("Deseja excluir outro produto? (s/n): ") == 's')
+            id_result = session.execute("SELECT id FROM favoritos WHERE email = %s AND produto = %s", [email, produtoNome])
+            id = id_result.one().id if id_result else None
+            if id:
+                prepared = session.prepare("DELETE FROM favoritos WHERE id = ?")
+                session.execute(prepared, [id])
+                tudo_ok()
+            else:
+                print("Favorito não encontrada.")
+    else:
+        print("Usuário não encontrado.")
+    voltar_opcoes()
+
+
 
 #funcoes recebe 
 def recebe_cadastro_usuario():
@@ -230,6 +258,37 @@ def pega_favoritos(email):
             posicao += 1
 
 
+
+def atualizar_usuario():
+    email = input("Email do usuário a atualizar: ")
+    row = session.execute("SELECT id FROM usuarios WHERE email = %s", [email]).one()
+    if not row:
+        print("Usuário não encontrado.")
+        return
+    user_id = row.id
+    print("Quais campos deseja atualizar?")
+    print("01 - Nome")
+    print("02 - Sobrenome")
+    print("03 - Email")
+    campos = input("Quais campos? (exemplo: 01,02,03): ")
+    campos = campos.split(",")
+    for campo in campos:
+        campo = int(campo)
+        if campo == 1:
+            nome = input("Novo nome: ")
+            session.execute("UPDATE usuarios SET nome = %s WHERE id = %s", [nome, user_id])
+        elif campo == 2:
+            sobrenome = input("Novo sobrenome: ")
+            session.execute("UPDATE usuarios SET sobrenome = %s WHERE id = %s", [sobrenome, user_id])
+        elif campo == 3:
+            novo_email = input("Novo email: ")
+            session.execute("UPDATE usuarios SET email = %s WHERE id = %s", [novo_email, user_id])
+    tudo_ok()
+    voltar_opcoes()
+
+
+
+
 def cadastrar_compras():
     email = input("Email do usuário que vai comprar: ")
     print('')
@@ -270,15 +329,7 @@ def cadastrar_favoritos():
 
 
 
-# def update_user(session, new_age, lastname):
-#     # TO DO: execute a BoundStatement that updates the age of one user
-#     prepared = session.prepare("UPDATE users SET age = ? WHERE lastname = ?")
-#     session.execute(prepared, [new_age, lastname])
-
-
-
 # Opções
-
 def opcoes():
     print("Olá, qual opção gostaria?")
     print("01 - Usuário")
@@ -314,6 +365,7 @@ def opcoes_usuario():
     print("04 - Deletar dados")
     print("05 - Adicionar compras")
     print("06 - Adicionar Favoritos")
+    print("07 - Remover Favoritos")
     print("00 - Voltar")
     print("")
     opcao = int(input("Opção: "))
@@ -340,6 +392,10 @@ def opcoes_usuario():
 
     elif(opcao == 6):
         cadastrar_favoritos()        
+
+    elif(opcao == 7):
+        email = input("Email do usuário relacionado ao favorito: ")
+        deletar_favorito(session,email)    
 
 def opcoes_vendedor():
     print("Qual opção deseja?")
@@ -415,7 +471,7 @@ def opcoes_compras():
         voltar_opcoes()
 
     elif(opcao == 2):
-        email = input("Email do usuário relacionado a compra: ")
+        email = input("Email do usuário relacionado à compra: ")
         delete_compra(session,email)
 
 def tudo_ok():
