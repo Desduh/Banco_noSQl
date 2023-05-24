@@ -175,7 +175,7 @@ def recebe_cadastro_vendedor():
     #     id = input("ID do produto: ")
     #     produtos.append({"id": id})
     #     adicao = (input("Deseja adicionar outro produto? (s/n): ") == 's')
-    insert_vendedor(session, sobrenome, email, nome)
+    insert_vendedor(session, nome, sobrenome, email)
     tudo_ok()
     voltar_opcoes()
 
@@ -264,7 +264,7 @@ def atualizar_usuario():
     row = session.execute("SELECT id FROM usuarios WHERE email = %s", [email]).one()
     if not row:
         print("Usuário não encontrado.")
-        return
+        voltar_opcoes()
     user_id = row.id
     print("Quais campos deseja atualizar?")
     print("01 - Nome")
@@ -286,6 +286,59 @@ def atualizar_usuario():
     tudo_ok()
     voltar_opcoes()
 
+def atualizar_vendedor():
+    email = input("Email do vendedor a atualizar: ")
+    row = session.execute("SELECT id FROM vendedores WHERE email = %s", [email]).one()
+    if not row:
+        print("Vendedor não encontrado.")
+        voltar_opcoes()
+    user_id = row.id
+    print("Quais campos deseja atualizar?")
+    print("01 - Nome")
+    print("02 - Sobrenome")
+    print("03 - Email")
+    campos = input("Quais campos? (exemplo: 01,02,03): ")
+    campos = campos.split(",")
+    for campo in campos:
+        campo = int(campo)
+        if campo == 1:
+            nome = input("Novo nome: ")
+            session.execute("UPDATE vendedores SET nome = %s WHERE id = %s", [nome, user_id])
+        elif campo == 2:
+            sobrenome = input("Novo sobrenome: ")
+            session.execute("UPDATE vendedores SET sobrenome = %s WHERE id = %s", [sobrenome, user_id])
+        elif campo == 3:
+            novo_email = input("Novo email: ")
+            session.execute("UPDATE vendedores SET email = %s WHERE id = %s", [novo_email, user_id])
+    tudo_ok()
+    voltar_opcoes()
+
+def atualizar_produto():
+    nome = input("Nome do produto a atualizar: ")
+    row = session.execute("SELECT id FROM produtos WHERE nome = %s", [nome]).one()
+    if not row:
+        print("Produto não encontrado.")
+        voltar_opcoes()
+    id_prod = row.id
+    print("Quais campos deseja atualizar?")
+    print("01 - Nome")
+    print("02 - Valor")
+    print("03 - Quantia")
+    campos = input("Quais campos? (exemplo: 01,02,03): ")
+    campos = campos.split(",")
+    for campo in campos:
+        campo = int(campo)
+        if campo == 1:
+            nome = input("Novo nome: ")
+            session.execute("UPDATE produtos SET nome = %s WHERE id = %s", [nome, id_prod])
+        elif campo == 2:
+            preco = input("Novo valor: ")
+            session.execute("UPDATE produtos SET preco = %s WHERE id = %s", [preco, id_prod])
+        elif campo == 3:
+            quantia = input("Nova quantia: ")
+            session.execute("UPDATE produtos SET quantia = %s WHERE id = %s", [quantia, id_prod])
+    tudo_ok()
+    voltar_opcoes()
 
 
 
