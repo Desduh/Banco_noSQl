@@ -27,6 +27,11 @@ def insert_compras(session,email,produto):
   id = uuid.uuid4()
   session.execute("INSERT INTO compras (id, email, produto) VALUES (%s,%s,%s)", [id, email,produto])
 
+def insert_favoritos(session,email,produto):
+  print("oi")
+  id = uuid.uuid4()
+  session.execute("INSERT INTO favoritos (id, email, produto) VALUES (%s,%s,%s)", [id, email,produto])
+
 
 
 def find_clientes():
@@ -43,6 +48,10 @@ def find_produtos():
 
 def find_compras():
   result = session.execute("SELECT * FROM compras;")
+  return result
+
+def find_favoritos():
+  result = session.execute("SELECT * FROM favoritos;")
   return result
 
 
@@ -164,6 +173,8 @@ def pega_clientes():
                 numero = endereco["numero"]
                 print(f"0{posicao} - CEP: {cep}, Número: {numero}")
                 posicao += 1
+        print("Favoritos: ")
+        pega_favoritos(cliente.email)
         print("")
     tudo_ok()
     voltar_opcoes()
@@ -209,10 +220,18 @@ def pega_compras():
             posicao += 1
     print(f"Total: R${str(total).replace('.', ',')}")
 
+def pega_favoritos(email):
+        posicao = 1
+        favoritos = session.execute("SELECT * FROM favoritos WHERE email = %s", [email])
+        for favorito in favoritos:
+            preco = session.execute("SELECT preco FROM produtos WHERE nome = %s", [favorito.produto]).one().preco
+            nome = favorito.produto
+            print(f"0{posicao} - Produto: {nome}, Preço: R${str(preco).replace('.', ',')}")
+            posicao += 1
 
 
 def cadastrar_compras():
-    email = input("Email do usuário que ira comprar: ")
+    email = input("Email do usuário que vai comprar: ")
     print('')
     print("Produtos disponíveis:")
     pega_produtos()
@@ -227,6 +246,25 @@ def cadastrar_compras():
         for produtoNome in produtosNome:
             if (produto.nome == produtoNome):
                 insert_compras(session,email,produto.nome)
+    tudo_ok()
+    voltar_opcoes()
+
+def cadastrar_favoritos():
+    email = input("Email do usuário que vai favoritar: ")
+    print('')
+    print("Produtos disponíveis:")
+    pega_produtos()
+    produtosNome = []
+    chave = True
+    while chave:
+        produtoNome = input("Nome do produto favoritado: ")
+        produtosNome.append(produtoNome)
+        chave = (input("Deseja adicionar outro favorito? (s/n): ") == 's')
+    produtos = find_produtos()
+    for produto in produtos:
+        for produtoNome in produtosNome:
+            if (produto.nome == produtoNome):
+                insert_favoritos(session,email,produto.nome)
     tudo_ok()
     voltar_opcoes()
 
@@ -432,11 +470,21 @@ def main():
         )
     """)
 
+    session.execute("""
+        CREATE TABLE IF NOT EXISTS mercado_livre.favoritos (
+            id UUID PRIMARY KEY,
+            email text,
+            produto text
+        )
+    """)
+
     session.execute("CREATE INDEX IF NOT EXISTS email_usuario ON usuarios (email);")
     session.execute("CREATE INDEX IF NOT EXISTS email_vendedor ON vendedores (email);")
     session.execute("CREATE INDEX IF NOT EXISTS nome_produto ON produtos (nome);")
     session.execute("CREATE INDEX IF NOT EXISTS email_compra ON compras (email);")
     session.execute("CREATE INDEX IF NOT EXISTS produto_compra ON compras (produto);")
+    session.execute("CREATE INDEX IF NOT EXISTS email_favorito ON favoritos (email);")
+    session.execute("CREATE INDEX IF NOT EXISTS produto_favorito ON favoritos (produto);")
 
     # get_user(session)
 
