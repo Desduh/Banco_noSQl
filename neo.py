@@ -146,19 +146,6 @@ def cadastrar_compras():
     tudo_ok()
     voltar_opcoes()
 
-def cadastrar_favoritos():
-    email = input("Email do usuário: ")
-    produtos = []
-    adicao = True
-    while adicao:
-        nome_produto = input("Nome do produto: ")
-        valor = input("Valor: ")
-        produtos.append({"nome": nome_produto, "valor": valor})
-        adicao = (input("Deseja adicionar outro produto? (s/n): ") == 's')
-    insert_favoritos(email, produtos)
-    tudo_ok()
-    voltar_opcoes()
-
 def atualizar_usuario():
     email = input("Email do usuário: ")
     print("Novos dados")
@@ -271,30 +258,6 @@ def pega_compras():
     tudo_ok()
     voltar_opcoes()
 
-def deletar_usuario():
-    email = input("Email do usuário: ")
-    delete_usuario(email)
-    tudo_ok()
-    voltar_opcoes()
-
-def deletar_vendedor():
-    email = input("Email do vendedor: ")
-    delete_vendedor(email)
-    tudo_ok()
-    voltar_opcoes()
-
-def deletar_produto():
-    nome = input("Nome do produto: ")
-    delete_produto(nome)
-    tudo_ok()
-    voltar_opcoes()
-
-def deletar_compra():
-    email = input("Email do usuário: ")
-    delete_compra(email)
-    tudo_ok()
-    voltar_opcoes()
-
 def tudo_ok():
     print("Operação concluída com sucesso!\n")
 
@@ -355,9 +318,6 @@ def opcoes_usuario():
 
     elif(opcao == 5):
         cadastrar_compras()
-
-    elif(opcao == 6):
-        cadastrar_favoritos()        
 
 def opcoes_vendedor():
     print("Qual opção deseja?")
