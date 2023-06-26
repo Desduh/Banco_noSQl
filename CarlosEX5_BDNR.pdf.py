@@ -15,11 +15,11 @@ def insert_usuario(nome, sobrenome, email, endereco):
             nome=nome, sobrenome=sobrenome, email=email, endereco=endereco
         )
 
-def insert_vendedor(nome, sobrenome, email, produtos):
+def insert_vendedor(nome, sobrenome, email):
     with driver.session() as session:
         session.run(
-            "CREATE (v:Vendedor {nome: $nome, sobrenome: $sobrenome, email: $email, produtos: $produtos})",
-            nome=nome, sobrenome=sobrenome, email=email, produtos=produtos
+            "CREATE (v:Vendedor {nome: $nome, sobrenome: $sobrenome, email: $email})",
+            nome=nome, sobrenome=sobrenome, email=email
         )
 
 def insert_produtos(nome, quantia, preco):
@@ -29,11 +29,24 @@ def insert_produtos(nome, quantia, preco):
             nome=nome, quantia=quantia, preco=preco
         )
 
-def insert_compras(email, produtos):
+def insert_compra(email_usuario, produtos):
     with driver.session() as session:
         session.run(
-            "CREATE (c:Compra {email: $email, produtos: $produtos})",
-            email=email, produtos=produtos
+            "MATCH (u:Usuario {email: $email_usuario}) "
+            "UNWIND $produtos AS produto "
+            "MATCH (p:Produto) WHERE ID(p) = produto "
+            "CREATE (u)-[:REALIZOU_COMPRA]->(c:Compra)-[:CONTEM_PRODUTO]->(p)",
+            email_usuario=email_usuario, produtos=produtos
+        )
+
+def insert_produto(email_vendedor, produtos):
+    with driver.session() as session:
+        session.run(
+            "MATCH (v:Vendedor {email: $email_vendedor}) "
+            "UNWIND $produtos AS produto "
+            "MATCH (p:Produto) WHERE ID(p) = produto "
+            "CREATE (v)-[:RESPONSAVEL]->(r:Responsavel)-[:CONTEM_PRODUTO]->(p)",
+            email_vendedor=email_vendedor, produtos=produtos
         )
 
 def find_clientes():
@@ -46,7 +59,8 @@ def find_clientes():
 def find_vendedores():
     with driver.session() as session:
         result = session.run(
-            "MATCH (v:Vendedor) RETURN v.nome AS nome, v.sobrenome AS sobrenome, v.email AS email, v.produtos AS produtos"
+            "MATCH (v:Vendedor)-[:RESPONSAVEL]->(r:Responsavel)-[:CONTEM_PRODUTO]->(p:Produto) "
+            "RETURN v.nome AS nome, v.sobrenome AS sobrenome, v.email AS email, COLLECT(p) AS produtos"
         )
         return result.data()
 
@@ -60,7 +74,8 @@ def find_produtos():
 def find_compras():
     with driver.session() as session:
         result = session.run(
-            "MATCH (c:Compra) RETURN c.email AS email, c.produtos AS produtos"
+            "MATCH (u:Usuario)-[:REALIZOU_COMPRA]->(c:Compra)-[:CONTEM_PRODUTO]->(p:Produto) "
+            "RETURN u.email AS email_usuario, COLLECT(p) AS produtos"
         )
         return result.data()
 
@@ -109,6 +124,7 @@ def recebe_cadastro_vendedor():
     nome = input("Nome: ")
     sobrenome = input("Sobrenome: ")
     email = input("Email: ")
+    insert_vendedor(nome, sobrenome, email)
     print("Produtos:")
     print()
     pega_produtos()
@@ -124,7 +140,7 @@ def recebe_cadastro_vendedor():
         if(chave):
             print("Nome informado não existe")
         adicao = (input("Deseja adicionar outro produto? (s/n): ") == 's')
-    insert_vendedor(nome, sobrenome, email, produtos)
+    insert_produto(email, produtos)
     tudo_ok()
     voltar_opcoes()
 
@@ -148,13 +164,35 @@ def cadastrar_compras():
         nome_produto = input("Adicionar produto: ")
         chave = True
         for prod in produtosid:
-            if(prod.get("nome") == nome_produto):
+            if prod.get("nome") == nome_produto:
                 produtos.append(prod.get("id"))
                 chave = False
-        if(chave):
+        if chave:
             print("Nome informado não existe")
         adicao = (input("Deseja adicionar outro produto? (s/n): ") == 's')
-    insert_compras(email, produtos)
+    insert_compra(email, produtos)
+    tudo_ok()
+    voltar_opcoes()
+
+def adicionarProduto():
+    produtosid = find_produtos()
+    email = input("Email do vendedor: ")
+    print("Produtos:")
+    print()
+    pega_produtos()
+    produtos = []
+    adicao = True
+    while adicao:
+        nome_produto = input("Adicionar produto: ")
+        chave = True
+        for prod in produtosid:
+            if prod.get("nome") == nome_produto:
+                produtos.append(prod.get("id"))
+                chave = False
+        if chave:
+            print("Nome informado não existe")
+        adicao = (input("Deseja adicionar outro produto? (s/n): ") == 's')
+    insert_produto(email, produtos)
     tudo_ok()
     voltar_opcoes()
 
@@ -232,16 +270,12 @@ def pega_vendedores():
         posicao = 1
         if vendedor.get("produtos") != None:
             print("Produtos: ")
-            print("")
             produtos = vendedor.get("produtos")
-            produtosAll = find_produtos()
             for produto in produtos:
-                for produtoAll in produtosAll:
-                    if(produto == produtoAll.get("id")):
-                        print("Nome: " + produtoAll.get("nome"))
-                        print("Quantia: " + produtoAll.get("quantia"))
-                        print("Preço: " + produtoAll.get("preco"))
-                        print("")
+                print("")
+                print("Nome: " + produto.get("nome"))
+                print("Quantia: " + produto.get("quantia"))
+                print("Preço: " + produto.get("preco"))
                 posicao += 1
         print("")
     tudo_ok()
@@ -343,6 +377,7 @@ def opcoes_vendedor():
     print("01 - Cadastrar")
     print("02 - Visualizar dados")
     print("03 - Atualizar dados")
+    print("04 - Adicionar produto")
     print("00 - Voltar")
     print("")
     opcao = int(input("Opção: "))
@@ -359,6 +394,9 @@ def opcoes_vendedor():
 
     elif(opcao == 3):
         atualizar_vendedor()
+
+    elif(opcao == 4):
+        adicionarProduto()
 
 
 def opcoes_produtos():
@@ -388,18 +426,20 @@ def opcoes_produtos():
 def opcoes_compras():
     print("Qual opção deseja?")
     print("01 - Visualizar dados")
+    print("02 - Realizar Compras")
     print("00 - Voltar")
     print("")
     opcao = int(input("Opção: "))
     print("")
 
-    if(opcao == 0): 
+    if opcao == 0: 
         opcoes()
-
-    elif(opcao == 1):
+    elif opcao == 1:
         pega_compras()
         tudo_ok()
         voltar_opcoes()
+    elif opcao == 2:
+        cadastrar_compras()
 
 def tudo_ok():
     print("Sua operação foi realizada!")
