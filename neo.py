@@ -39,6 +39,16 @@ def insert_compra(email_usuario, produtos):
             email_usuario=email_usuario, produtos=produtos
         )
 
+def insert_favorito(email_usuario, produtos):
+    with driver.session() as session:
+        session.run(
+            "MATCH (u:Usuario {email: $email_usuario}) "
+            "UNWIND $produtos AS produto "
+            "MATCH (p:Produto) WHERE ID(p) = produto "
+            "CREATE (u)-[:FAVORITOU]->(fav:Favorito)-[:CONTEM_PRODUTO]->(p)",
+            email_usuario=email_usuario, produtos=produtos
+        )
+
 def insert_produto(email_vendedor, produtos):
     with driver.session() as session:
         session.run(
@@ -52,7 +62,9 @@ def insert_produto(email_vendedor, produtos):
 def find_clientes():
     with driver.session() as session:
         result = session.run(
-            "MATCH (u:Usuario) RETURN u.nome AS nome, u.sobrenome AS sobrenome, u.email AS email"
+            "MATCH (u)-[:REALIZOU_COMPRA]->(c:Compra)-[:CONTEM_PRODUTO]->(p:Produto) "
+            "MATCH (u)-[:FAVORITOU]->(fav:Favorito)-[:CONTEM_PRODUTO]->(prod:Produto) "
+            "RETURN u.nome AS nome, u.sobrenome AS sobrenome, u.email AS email, COLLECT(p) AS compras, COLLECT(prod) AS favoritos"
         )
         return result.data()
 
@@ -174,6 +186,28 @@ def cadastrar_compras():
     tudo_ok()
     voltar_opcoes()
 
+def cadastrar_favorito():
+    produtosid = find_produtos()
+    email = input("Email do usuário: ")
+    print("Produtos:")
+    print()
+    pega_produtos()
+    produtos = []
+    adicao = True
+    while adicao:
+        nome_produto = input("Adicionar produto: ")
+        chave = True
+        for prod in produtosid:
+            if prod.get("nome") == nome_produto:
+                produtos.append(prod.get("id"))
+                chave = False
+        if chave:
+            print("Nome informado não existe")
+        adicao = (input("Deseja adicionar outro produto? (s/n): ") == 's')
+    insert_favorito(email, produtos)
+    tudo_ok()
+    voltar_opcoes()
+
 def adicionarProduto():
     produtosid = find_produtos()
     email = input("Email do vendedor: ")
@@ -225,6 +259,7 @@ def atualizar_produto():
 
 def pega_clientes():
     clientes = find_clientes()
+    print(clientes)
     for cliente in clientes:
         print("Nome: " + cliente.get("nome"))
         print("Sobrenome: " + cliente.get("sobrenome"))
@@ -241,13 +276,13 @@ def pega_clientes():
         posicao = 1
         if cliente.get("favoritos") != None:
             print("Favoritos: ")
-            favoritos = cliente.get("favoritos")
-            for favorito in favoritos:
-                nome = favorito.get("nome")
-                valor = favorito.get("valor")
-                print(f"0{posicao} - Nome do produto: {nome}, Valor: {valor}")
+            produtos = cliente.get("favoritos")
+            for produto in produtos:
+                nome = produto.get("nome")
+                preco = produto.get("preco")
+                quantia = produto.get("quantia")
+                print(f"0{posicao} - Produto: {nome}, Preço: {preco}, Quantia: {quantia}")
                 posicao += 1
-                posicao = 1
         if cliente.get("compras") != None:
             print("Compras: ")
             produtos = cliente.get("compras")
@@ -258,6 +293,33 @@ def pega_clientes():
                 print(f"0{posicao} - Produto: {nome}, Preço: {preco}, Quantia: {quantia}")
                 posicao += 1
         print("")
+    tudo_ok()
+    voltar_opcoes()
+
+def excluir_usuario(email):
+    with driver.session() as session:
+        session.run(
+            "MATCH (u:Usuario)"
+            "WHERE u.email = '" + email +
+            "' DETACH DELETE u")
+    tudo_ok()
+    voltar_opcoes()
+
+def excluir_vendedor(email):
+    with driver.session() as session:
+        session.run(
+            "MATCH (v:Vendedor)"
+            "WHERE v.email = '" + email +
+            "' DETACH DELETE v")
+    tudo_ok()
+    voltar_opcoes()
+
+def excluir_produto(nome):
+    with driver.session() as session:
+        session.run(
+            "MATCH (p:Produto)"
+            "WHERE p.nome = '" + nome +
+            "' DETACH DELETE p")
     tudo_ok()
     voltar_opcoes()
 
@@ -351,7 +413,9 @@ def opcoes_usuario():
     print("01 - Cadastrar")
     print("02 - Visualizar dados")
     print("03 - Atualizar dados")
-    print("05 - Adicionar compras")
+    print("05 - Adicionar compras")  
+    print("06 - Adicionar favoritos")   
+    print("07 - Excluir usuário")
     print("00 - Voltar")
     print("")
     opcao = int(input("Opção: "))
@@ -372,12 +436,20 @@ def opcoes_usuario():
     elif(opcao == 5):
         cadastrar_compras()
 
+    elif(opcao == 6):
+        cadastrar_favorito()
+
+    elif(opcao == 7):
+        email = input("Email do usuario: ")
+        excluir_usuario(email)
+
 def opcoes_vendedor():
     print("Qual opção deseja?")
     print("01 - Cadastrar")
     print("02 - Visualizar dados")
     print("03 - Atualizar dados")
     print("04 - Adicionar produto")
+    print("05 - Excluir vendedor")
     print("00 - Voltar")
     print("")
     opcao = int(input("Opção: "))
@@ -398,12 +470,16 @@ def opcoes_vendedor():
     elif(opcao == 4):
         adicionarProduto()
 
+    elif(opcao == 5):
+        email = input("Email do vendedor: ")
+        excluir_vendedor(email)
 
 def opcoes_produtos():
     print("Qual opção deseja?")
     print("01 - Cadastrar")
     print("02 - Visualizar dados")
     print("03 - Atualizar dados")
+    print("04 - Excluir produto")
     print("00 - Voltar")
     print("")
     opcao = int(input("Opção: "))
@@ -422,6 +498,10 @@ def opcoes_produtos():
 
     elif(opcao == 3):
         atualizar_produto()
+
+    elif(opcao == 4):
+        nome = input("Nome do produto: ")
+        excluir_produto(nome)
 
 def opcoes_compras():
     print("Qual opção deseja?")
